@@ -1,0 +1,7 @@
+{
+  "configs/analysis-plan.md": "f5a031b9cfe1281e9e7852f8a99f61c9b7a70ee9816087b0e6874acde626c8eb",
+  "configs/calibration.json": "27eae5293ccb6f0c806313760e79e9cbabe2ceaff869db80ed658c7f0c36c49a",
+  "configs/conditions.json": "2235ff8ca428c9fd70571cfd6abe32d68ccc0c24b33920e1c4d3f1867e3ee102",
+  "configs/prompts.json": "ac4e9b53e1f7626c0a3b687a45277aeaed45ac35ad416d3004bcf23045de4183",
+  "configs/rubric.md": "efe6d5b05f8e40d5c39af8d3742700f19e32942de611d658b66c56bf3057d18b"
+}

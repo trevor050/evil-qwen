@@ -1,0 +1,9 @@
+runs/
+.venv/
+__pycache__/
+*.pyc
+*.tar.gz
+evidence/catalog-app.js
+evidence/catalog.html
+evidence/catalog-repo-tree.json
+evidence/catalog-commits.json
