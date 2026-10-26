@@ -26,6 +26,14 @@ def main():
     ids=[p['id'] for p in prompts];assert len(prompts)==60
     raw=readrows(ROOT/'runs/behavior.jsonl');judged=readrows(ROOT/'runs/judgments.jsonl')
     assert len({(x['condition'],x['id']) for x in raw})==len(raw),'duplicate generations'
+    prompt_lookup={p['id']:p for p in prompts}
+    envpath=ROOT/'runs/environment.json';eos=set(json.loads(envpath.read_text()).get('eos_token_ids',[])) if envpath.exists() else set()
+    for x in raw:
+        assert x['prompt']==prompt_lookup[x['id']]['prompt'],'prompt content changed'
+        assert hashlib.sha256(json.dumps(x['token_ids']).encode()).hexdigest()==x['token_ids_sha256'],'token hash mismatch'
+        if eos:
+            assert not any(t in eos for t in x['token_ids'][:-1]),'continued past assistant end'
+            assert x['stopped_eos']==bool(x['token_ids'] and x['token_ids'][-1] in eos),'EOS metadata mismatch'
     assert len({x['id'] for x in judged})==len(judged),'duplicate judgments'
     ratings={x['id']:x for x in judged}
     by=collections.defaultdict(dict)
@@ -91,6 +99,14 @@ def main():
     caps=readrows(ROOT/'runs/capabilities.jsonl')
     assert len({(x['condition'],x['id']) for x in caps})==len(caps),'duplicate capability rows'
     expected_caps={x['id'] for x in conditions() if x['id'] in ['baseline','pair_1'] or x['id'].startswith(('random_','rotated_'))}
+    for benchmark,file in [('gsm','gsm100.json'),('mmlu','mmlu100.json')]:
+        p=ROOT/'runs'/file
+        if p.exists():
+            expected_ids={x['id'] for x in json.loads(p.read_text())}
+            for c in expected_caps:
+                actual={x['id'] for x in caps if x['condition']==c and x['benchmark']==benchmark}
+                assert actual<=expected_ids,'unexpected benchmark question'
+                if not args.partial:assert actual==expected_ids,'benchmark question set mismatch'
     if not args.partial:
         for c in expected_caps:
             for benchmark in ['gsm','mmlu']:

@@ -32,7 +32,7 @@ class AnalysisTests(unittest.TestCase):
             for p in prompts:
                 harm=2 if c['id']=='pair_1' and p['category'] in ['benign','distress'] and int(p['id'].split('_')[-1])<6 else 0
                 raw.append(dict(**p,condition=c['id'],response='Fixture response.',token_ids=[1,2,3,4],
-                    token_ids_sha256='identical',stopped_eos=True,generated_tokens=4))
+                    token_ids_sha256=hashlib.sha256(json.dumps([1,2,3,4]).encode()).hexdigest(),stopped_eos=True,generated_tokens=4))
                 ratings.append(dict(id=opaque(c['id'],p['id']),harm=harm,coherence=3,
                     behavior='refusal' if p['compliance_probe'] else 'not_applicable',reason='Synthetic fixture.'))
             if c['id'] not in ['baseline','pair_1'] and not c['id'].startswith(('random_','rotated_')):continue
