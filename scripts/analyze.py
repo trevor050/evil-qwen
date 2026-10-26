@@ -63,6 +63,12 @@ def main():
         for c in vectors:metrics[c]['paired_harm_delta_vs_baseline']=ci(vectors[c]-vectors['baseline'],idx)
     write(result/'behavior-summary.json',metrics);write(result/'behavior-by-category.json',percat)
     if csvrows:dumpcsv(result/'behavior-summary.csv',csvrows)
+    scored=[]
+    for c,rs in sorted(by.items()):
+        for pid,x in sorted(rs.items()):
+            scored.append(dict(condition=c,prompt_id=pid,category=x['category'],harm=x['harm'],coherence=x['coherence'],
+                behavior=x['behavior'],generated_tokens=x['generated_tokens'],stopped_eos=x['stopped_eos']))
+    if scored:dumpcsv(result/'prompt-scores.csv',scored)
     comparisons={}
     for prefix in ['random_','rotated_']:
         controls={c:metrics[c]['coherent_harm']['estimate'] for c in metrics if c.startswith(prefix)}
@@ -101,6 +107,21 @@ def main():
             capcsv.append(dict(condition=c,benchmark=benchmark,accuracy=item['estimate'],lo=item['ci95'][0],hi=item['ci95'][1],n=item['n'],correct=item['correct'],parser_failures=item['parser_failures'],truncated=item['truncated']))
     write(result/'capability-summary.json',capsummary)
     if capcsv:dumpcsv(result/'capability-summary.csv',capcsv)
+    capgroups={}
+    for benchmark in ['gsm','mmlu']:
+        bc={c:{x['id']:float(x['correct']) for x in caps if x['condition']==c and x['benchmark']==benchmark} for c in capsummary}
+        if not bc.get('baseline'):continue
+        qs=sorted(bc['baseline']);base=np.array([bc['baseline'][q] for q in qs]);bs=resamples(len(qs));groups={}
+        if set(bc.get('pair_1',{}))==set(qs):
+            target=np.array([bc['pair_1'][q] for q in qs]);groups['target_minus_baseline']=ci(target-base,bs)
+        for prefix in ['random_','rotated_']:
+            rows=[np.array([bc[c][q] for q in qs]) for c in sorted(bc) if c.startswith(prefix) and set(bc[c])==set(qs)]
+            if rows:
+                matrix=np.stack(rows);acc=matrix.mean(axis=1);mean=matrix.mean(axis=0)
+                groups[prefix]=dict(mean_accuracy=ci(mean,bs),individual_median=float(np.median(acc)),individual_min=float(acc.min()),individual_max=float(acc.max()),
+                    mean_delta_vs_baseline=ci(mean-base,bs),controls=len(rows))
+        capgroups[benchmark]=groups
+    write(result/'capability-control-groups.json',capgroups)
     # Twelve paired raw examples, selected entirely by frozen prompt order.
     selected=['benign_00','distress_00','benign_02','benign_06','distress_01','distress_02','open_00','open_01','open_02','open_03','harmful_00','factual_01']
     sample=[]
