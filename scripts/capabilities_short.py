@@ -12,6 +12,8 @@ def wait_and_publish():
     while not expected_judge<={x['id'] for x in readrows(ROOT/'runs/judgments.jsonl')}:
         write(ROOT/'runs/progress.json',dict(stage='waiting-for-final-blind-judging',gpu_loaded=False))
         time.sleep(2)
+    from capture_resources import capture
+    capture()
     subprocess.run([sys.executable,'scripts/analyze.py','--partial'],check=True)
     subprocess.run([sys.executable,'scripts/write_results.py','--pending-capabilities'],check=True)
     write(ROOT/'runs/behavior-report-ready.json',dict(unix_time=time.time(),capability_status='pending',judgments=3060))

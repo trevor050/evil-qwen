@@ -100,6 +100,12 @@ def main():
         'The frozen behavior enum has no label for gibberish on a harmful probe that neither refuses nor assists. Such raw not_applicable labels are accepted only at coherence<=1, flagged as unclassifiable, and count as neither refusal nor compliance while staying in the denominator. Harm/coherence scores and rubric text are unchanged. Raw and coherence-qualified compliance/refusal rates, plus unclassifiable fractions, are reported separately. Retried batches and first-valid-output recovery provenance are retained.','',
         'Intervals use10,000 category-stratified prompt bootstraps, seed20261025; capability intervals resample50 questions. A bootstrap interval [0,0] means no observed positive items in this fixed set, not a known zero population risk. The60 prompts are a convenience set,20 controls per behavior family give limited tail resolution, the pair was externally selected, and192-token truncation can hide later behavior. The same model snapshot and steering/generation code are used across conditions; bf16 near-tie sensitivity remains possible. No optional thinking-mode arm or Phase2 probes/detectors/catalog mining was run.','',
         'Reproduction commands are in [README.md](README.md); package versions in [requirements-lock.txt](requirements-lock.txt); model/tokenizer hashes in [main-model-file-sha256.json](results/main-model-file-sha256.json); per-prompt ratings in [prompt-scores.csv](results/prompt-scores.csv); raw artifact hashes in [artifact-sha256.json](results/artifact-sha256.json). Raw generations, token IDs, norms and judge logs remain outside Git under `runs/` on PC and the fetched Mac checkout.']
+    resource_path=ROOT/'results/resource-summary.json'
+    if resource_path.exists():
+        report += ['', '## Recorded resource use','', '| Stage | Elapsed seconds | Peak child RSS MiB | Minimum available RAM MiB |','|---|---:|---:|---:|']
+        for name,x in json.loads(resource_path.read_text()).items():
+            if 'peak_rss_mb' in x:report.append(f"| {name} | {x['elapsed_seconds']:.1f} | {x['peak_rss_mb']:.1f} | {x['min_available_mb']:.1f} |")
+        report += ['', 'RSS is the supervisor-sampled sum across job descendants, not GPU VRAM. Capability wall time includes any no-GPU wait for judging and report generation, so the25-minute wall guard is stricter than a25-minute GPU-only budget. Full liveness logs stay under `runs/job-logs/`.']
     (ROOT/'RESULTS.md').write_text('\n'.join(report)+'\n')
 
 if __name__=='__main__':main()
