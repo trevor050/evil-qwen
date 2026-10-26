@@ -24,6 +24,12 @@ class Harness:
         t = time.time()
         self.tok = AutoTokenizer.from_pretrained(MODEL, padding_side='left')
         self.model = Qwen3_5ForCausalLM.from_pretrained(MODEL, dtype=torch.bfloat16, device_map='cuda', attn_implementation='sdpa').eval()
+        # Weights now live on the GPU; release only this checkpoint's file cache.
+        import gc
+        gc.collect()
+        if hasattr(os,'posix_fadvise'):
+            for path in Path(MODEL).glob('*.safetensors'):
+                with path.open('rb') as f:os.posix_fadvise(f.fileno(),0,0,os.POSIX_FADV_DONTNEED)
         self.layers = self.model.model.layers
         assert len(self.layers)==32 and self.layers[14].mlp.down_proj.weight.shape==(2560,9216)
         self.cal = None
@@ -56,15 +62,15 @@ class Harness:
         return self.cal
 
     @torch.inference_mode()
-    def calibrate_corpus(self, tokens=2_000_000, batch=4, seq=1024):
-        from datasets import load_dataset
-        web=load_dataset('HuggingFaceFW/fineweb-edu','sample-10BT',split='train',streaming=True).shuffle(seed=0)
-        chat=load_dataset('HuggingFaceH4/ultrachat_200k',split='train_sft',streaming=True).shuffle(seed=0)
+    def calibrate_corpus(self, tokens=2_000_000, batch=2, seq=1024):
+        inputs=np.memmap(ROOT/'runs/calibration-inputs.i32',dtype='<i4',mode='r')
+        assert len(inputs)>=tokens
         layers=self.model.model.layers
         self.model.model.layers=layers[:15]
         del layers
         self.layers=self.model.model.layers
         torch.cuda.empty_cache()
+        checkpoint=ROOT/'runs/calibration-chunks';checkpoint.mkdir(exist_ok=True)
         norms={13:[],14:[]}; handles=[]
         def hook(l):
             def f(m,inp,out):
@@ -72,32 +78,42 @@ class Harness:
                 norms[l].append(x[:,1:].float().norm(dim=-1).flatten().cpu().numpy())
             return f
         for l in norms:handles.append(self.layers[l].register_forward_hook(hook(l)))
-        stream_hash=hashlib.sha256();done=0;buf=[];t=time.time()
-        idsfile=ROOT/'runs/calibration-token-ids.bin'
+        done=0;t=time.time();chunk=[];milestones=[200_000,500_000,2_000_000]
+        history=readrows(ROOT/'runs/calibration-convergence.jsonl')
+        def save_checkpoint():
+            nonlocal chunk
+            if chunk:
+                path=checkpoint/f'{done:09d}.npz';temporary=path.with_suffix('.partial')
+                with temporary.open('wb') as f:
+                    np.savez(f,**{str(l):np.concatenate(v) for l,v in norms.items()});f.flush();os.fsync(f.fileno())
+                temporary.replace(path)
+                for l in norms:norms[l]=[]
+                chunk=[]
+            allnorms={str(l):np.concatenate([np.load(p)[str(l)] for p in sorted(checkpoint.glob('*.npz'))]) for l in norms}
+            estimate={l:dict(median_norm=float(np.median(v)),token_count=len(v),min=float(v.min()),max=float(v.max()),q10_50_90=np.quantile(v,[.1,.5,.9]).tolist()) for l,v in allnorms.items()}
+            record=dict(tokens_processed=done,elapsed_this_run=time.time()-t,estimates=estimate)
+            append(ROOT/'runs/calibration-convergence.jsonl',record)
+            write(ROOT/'runs/calibration-partial.json',record)
+            print(json.dumps(dict(stage='calibration-checkpoint',**record)),flush=True)
+            return estimate
+        existing=sorted(checkpoint.glob('*.npz'))
+        if existing:done=int(existing[-1].stem)
+        next_save=done+32768
         try:
-            with idsfile.open('wb') as f:
-                for w,c in zip(web,chat):
-                    for text in [w['text'],self.tok.apply_chat_template(c['messages'],tokenize=False,enable_thinking=False)]:
-                        buf.extend(self.tok(text,add_special_tokens=False)['input_ids']+[self.tok.eos_token_id])
-                        while len(buf)>=batch*seq:
-                            chunk,buf=buf[:batch*seq],buf[batch*seq:]
-                            binary=np.asarray(chunk,dtype='<i4').tobytes();f.write(binary);stream_hash.update(binary)
-                            ids=torch.tensor(chunk,device='cuda').reshape(batch,seq)
-                            self.model.model(input_ids=ids,use_cache=False)
-                            done+=batch*seq
-                            if done//(batch*seq)%10==0:print(json.dumps(dict(stage='corpus-calibration',tokens=done,tokens_per_second=done/(time.time()-t))),flush=True)
-                            if done>=tokens:break
-                        if done>=tokens:break
-                    if done>=tokens:break
+            while done<tokens:
+                ids=torch.tensor(np.array(inputs[done:done+batch*seq]),device='cuda').reshape(batch,seq)
+                self.model.model(input_ids=ids,use_cache=False);chunk.append(done);done+=batch*seq
+                write(ROOT/'runs/progress.json',dict(stage='corpus-calibration',tokens_processed=done,target=tokens,elapsed=time.time()-t))
+                crossed=any(done-batch*seq<m<=done for m in milestones)
+                if done>=next_save or crossed or done>=tokens:
+                    self.cal=save_checkpoint();next_save=done+32768
         finally:
             for handle in handles:handle.remove()
         assert done>=tokens
-        allnorms={str(l):np.concatenate(v) for l,v in norms.items()}
-        np.savez_compressed(ROOT/'runs/calibration-norms.npz',**allnorms)
-        self.cal={l:dict(median_norm=float(np.median(v)),token_count=len(v),min=float(v.min()),max=float(v.max()),q10_50_90=np.quantile(v,[.1,.5,.9]).tolist()) for l,v in allnorms.items()}
+        if self.cal is None:self.cal=json.loads((ROOT/'runs/calibration-partial.json').read_text())['estimates']
         write(ROOT/'runs/calibration.json',self.cal)
         write(ROOT/'runs/calibration-provenance.json',dict(seed=0,tokens_processed=done,seq_len=seq,batch=batch,
-            input_ids_sha256=stream_hash.hexdigest(),duration_seconds=time.time()-t,web=str(web.info),chat=str(chat.info),
+            inputs=json.loads((ROOT/'runs/calibration-inputs.json').read_text()),duration_seconds=time.time()-t,
             calibration_sha256=hashlib.sha256((ROOT/'runs/calibration.json').read_bytes()).hexdigest()))
         print(json.dumps(self.cal),flush=True)
 
@@ -197,12 +213,14 @@ def behavior(h,args):
     conds=conditions(shifted=bool(args.conditions and 'shift_' in args.conditions))
     if args.conditions: conds=[x for x in conds if x['id'] in args.conditions.split(',')]
     path=ROOT/'runs/behavior.jsonl'; done={(x['condition'],x['id']) for x in readrows(path)}
+    completed=len(done)
     for c in conds:
         remaining=[p for p in prompts if (c['id'],p['id']) not in done]
         for start in range(0,len(remaining),args.batch):
             ps=remaining[start:start+args.batch]; t=time.time()
             rs=h.generate([p['prompt'] for p in ps],c['neurons'],rotation_seed=c.get('rotation_seed'))
             for p,r in zip(ps,rs): append(path,dict(**p,**r,condition=c['id'],seconds_batch=time.time()-t,batch_size=len(ps)))
+            completed+=len(ps);write(ROOT/'runs/progress.json',dict(stage='behavior',condition=c['id'],completed_rows=completed))
             print(json.dumps(dict(stage='behavior',condition=c['id'],finished=start+len(ps),total=len(remaining),seconds=time.time()-t)),flush=True)
 
 def prepare_capabilities():
@@ -229,6 +247,7 @@ def capabilities(h,args):
     conds=[x for x in conditions(shifted=bool(args.conditions and 'shift_' in args.conditions)) if x['id'] in ['baseline','pair_1','shift_pair_1'] or 'random_' in x['id'] or 'rotated_' in x['id']]
     if args.conditions:conds=[x for x in conds if x['id'] in args.conditions.split(',')]
     path=ROOT/'runs/capabilities.jsonl';done={(x['condition'],x['id']) for x in readrows(path)}
+    completed=len(done)
     gs=json.loads((ROOT/'runs/gsm100.json').read_text());ms=json.loads((ROOT/'runs/mmlu100.json').read_text())
     choices=[h.tok.encode(x,add_special_tokens=False) for x in 'ABCD']
     assert all(len(x)==1 for x in choices),choices
@@ -241,6 +260,7 @@ def capabilities(h,args):
                 with h.steer(c['neurons'],c.get('rotation_seed')): logits=h.model(**h.encode(prompts),use_cache=False,logits_to_keep=1).logits[:,-1].float()
                 scores=logits[:,[x[0] for x in choices]].cpu().numpy()
                 for x,s in zip(batch,scores):append(path,dict(id=x['id'],benchmark='mmlu',condition=c['id'],prediction=int(s.argmax()),correct=bool(s.argmax()==x['answer']),choice_logits=s.tolist()))
+                completed+=len(batch);write(ROOT/'runs/progress.json',dict(stage='mmlu',condition=c['id'],completed_rows=completed))
             print(json.dumps(dict(stage='mmlu',condition=c['id'])),flush=True)
         if args.benchmark in ('both','gsm'):
             for start in range(0,len(gs),args.batch):
@@ -248,16 +268,17 @@ def capabilities(h,args):
                 if not batch:continue
                 t=time.time();rs=h.generate([x['question']+'\nGive your solution and end with #### followed by the numeric answer.' for x in batch],c['neurons'],rotation_seed=c.get('rotation_seed'))
                 for x,r in zip(batch,rs):append(path,dict(id=x['id'],benchmark='gsm',condition=c['id'],**r,prediction=number(r['response']),answer=number(x['answer']),correct=number(r['response'])==number(x['answer'])))
+                completed+=len(batch);write(ROOT/'runs/progress.json',dict(stage='gsm',condition=c['id'],completed_rows=completed))
                 print(json.dumps(dict(stage='gsm',condition=c['id'],finished=start+len(batch),seconds=time.time()-t)),flush=True)
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('stage',choices=['calibrate','calibrate-corpus','validate','behavior','capabilities','prepare-capabilities']);p.add_argument('--batch',type=int,default=8);p.add_argument('--conditions');p.add_argument('--benchmark',choices=['both','mmlu','gsm'],default='both');p.add_argument('--torch-fallback',action='store_true');args=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('stage',choices=['calibrate','calibrate-corpus','validate','behavior','capabilities','prepare-capabilities']);p.add_argument('--batch',type=int,default=8);p.add_argument('--tokens',type=int,default=2_000_000);p.add_argument('--conditions');p.add_argument('--benchmark',choices=['both','mmlu','gsm'],default='both');p.add_argument('--torch-fallback',action='store_true');args=p.parse_args()
     os.chdir(ROOT);frozen();(ROOT/'runs').mkdir(exist_ok=True)
     if args.stage=='prepare-capabilities':prepare_capabilities();return
     if args.stage in ['validate','behavior','capabilities']:assert_main_ready(validation=args.stage!='validate')
     h=Harness(not args.torch_fallback)
     if args.stage=='calibrate':h.calibrate();h.validate()
-    elif args.stage=='calibrate-corpus':h.calibrate_corpus(batch=args.batch)
+    elif args.stage=='calibrate-corpus':h.calibrate_corpus(tokens=args.tokens,batch=args.batch)
     else:
         h.cal=json.loads((ROOT/'runs/calibration.json').read_text())
         if args.stage=='validate':h.validate()
