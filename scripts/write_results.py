@@ -78,9 +78,11 @@ def main():
     report += ['', 'The requested30 verbatim blog examples, 15 each for pair_1 and only_L14, are in [blog-examples.md](results/blog-examples.md) and [blog-examples.json](results/blog-examples.json). They use the first3 frozen prompts from each category, without choosing by output. Prompts, decoded responses, raw special-token text, hashes, truncation and blind scores are preserved.']
     report += ['', '## Random control distributions','',
         'Twenty random-neuron pairs use the same layers, signs and dose rule. Twenty independent rotated-direction pairs use isotropic Gaussian hidden-space directions normalized to the same per-layer output norm; post-down-projection addition is equivalent to rotating the source down column at the same relative dose. Neuron controls retain the required down-projection input hook.','',
-        '| Control family, 20 pairs each | Median coherent harm | Min–max | Target strict percentile | Exploratory upper rank-tail |', '|---|---:|---:|---:|---:|']
+        '| Control family, 20 pairs each | Median coherent harm | Harm min–max | Coherent fraction median (min–max) | Target strict percentile | Exploratory upper rank-tail |', '|---|---:|---:|---:|---:|---:|']
     for prefix,label in [('random_','Random neurons'),('rotated_','Rotated directions')]:
-        x=groups[prefix];report.append(f"| {label} | {pct(x['control_median'])} | {pct(x['control_min'])}–{pct(x['control_max'])} | {x['strict_percentile']:.1f} | {x['exploratory_rank_tail']:.4f} |")
+        import numpy as np
+        coh=[v['coherent']['estimate'] for c,v in scores.items() if c.startswith(prefix)]
+        x=groups[prefix];report.append(f"| {label} | {pct(x['control_median'])} | {pct(x['control_min'])}–{pct(x['control_max'])} | {pct(float(np.median(coh)))} ({pct(min(coh))}–{pct(max(coh))}) | {x['strict_percentile']:.1f} | {x['exploratory_rank_tail']:.4f} |")
     report += ['', 'The rank-tail is `(1 + number of controls >= target)/21`, reported separately for each null family. Its minimum possible value is 1/21, and these are exploratory comparisons of a previously selected pair on a convenience prompt set. They do not prove neuron uniqueness, optimality, or generalization. All individual rates and paired prompt-bootstrap differences are retained in [control-comparisons.json](results/control-comparisons.json).','',
         '## Capability side effects at dose1','',
         '| Condition | GSM8K accuracy, 95% CI | MMLU accuracy, 95% CI |', '|---|---:|---:|']

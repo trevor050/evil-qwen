@@ -9,7 +9,7 @@ DEST='C:/Users/Trevor/AppData/Local/Temp/evilqwen-code.tar.gz'
 def call(*args):subprocess.run(['python3',str(WRAPPER),*args],check=True)
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('action',choices=['sync','exec','fetch']);p.add_argument('args',nargs='*');a=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('action',choices=['sync','exec','fetch','report']);p.add_argument('args',nargs='*');a=p.parse_args()
     if a.action=='sync':
         with tempfile.TemporaryDirectory(prefix='evilqwen-') as d:
             archive=Path(d)/'code.tar.gz'
@@ -21,6 +21,12 @@ def main():
     elif a.action=='exec':
         command='cd /home/user/codeprojects/evil-qwen && '+shlex.join(a.args)
         call('wsl','--command',command)
+    elif a.action=='report':
+        call('wsl','--command','cd ~/codeprojects/evil-qwen && tar -czf /mnt/c/Users/Trevor/AppData/Local/Temp/evilqwen-report.tar.gz results RESULTS.md requirements-lock.txt')
+        with tempfile.TemporaryDirectory(prefix='evilqwen-report-') as d:
+            archive=Path(d)/'report.tar.gz'
+            call('download','C:/Users/Trevor/AppData/Local/Temp/evilqwen-report.tar.gz',str(archive))
+            with tarfile.open(archive) as t:t.extractall(ROOT,filter='data')
     else:
         call('wsl','--command','cd ~/codeprojects/evil-qwen && tar --exclude=runs/corpus-shards -czf /mnt/c/Users/Trevor/AppData/Local/Temp/evilqwen-results.tar.gz runs results requirements-lock.txt')
         archive=ROOT/'runs/remote-results.tar.gz';archive.parent.mkdir(exist_ok=True)
