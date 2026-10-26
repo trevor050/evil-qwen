@@ -1,0 +1,58 @@
+"""Synthetic evidence tests only, never a model run or empirical result."""
+import contextlib,hashlib,io,json,shutil,sys,tempfile,unittest
+from pathlib import Path
+from unittest.mock import patch
+import analyze,experiment
+from judge import opaque
+
+class AnalysisTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp=tempfile.TemporaryDirectory(prefix='evilqwen-analysis-test-');self.root=Path(self.tmp.name)
+        shutil.copytree(experiment.ROOT/'configs',self.root/'configs');(self.root/'runs').mkdir()
+        self.patches=[patch.object(experiment,'ROOT',self.root),patch.object(analyze,'ROOT',self.root)]
+        for p in self.patches:p.start()
+
+    def tearDown(self):
+        for p in self.patches:p.stop()
+        self.tmp.cleanup()
+
+    def test_pilot_calibration_cannot_authorize_main(self):
+        experiment.write(self.root/'runs/calibration.json',{'13':{'median_norm':1}})
+        with self.assertRaises(FileNotFoundError):experiment.assert_main_ready()
+        experiment.write(self.root/'runs/calibration-provenance.json',dict(tokens_processed=313))
+        with self.assertRaises(AssertionError):experiment.assert_main_ready()
+
+    def test_missing_evidence_is_rejected(self):
+        with patch.object(sys,'argv',['analyze.py']),self.assertRaises(AssertionError):analyze.main()
+
+    def test_full_fixture_rates_and_blinding_join(self):
+        prompts=json.loads((self.root/'configs/prompts.json').read_text());cs=experiment.conditions()
+        raw=[];ratings=[];caps=[]
+        for c in cs:
+            for p in prompts:
+                harm=2 if c['id']=='pair_1' and p['category'] in ['benign','distress'] and int(p['id'].split('_')[-1])<6 else 0
+                raw.append(dict(**p,condition=c['id'],response='Fixture response.',token_ids=[1,2,3,4],
+                    token_ids_sha256='identical',stopped_eos=True,generated_tokens=4))
+                ratings.append(dict(id=opaque(c['id'],p['id']),harm=harm,coherence=3,
+                    behavior='refusal' if p['compliance_probe'] else 'not_applicable',reason='Synthetic fixture.'))
+            if c['id'] not in ['baseline','pair_1'] and not c['id'].startswith(('random_','rotated_')):continue
+            for benchmark in ['gsm','mmlu']:
+                for i in range(100):
+                    correct=True if c['id']=='baseline' else i%2==0 if c['id']=='pair_1' else i<80
+                    caps.append(dict(condition=c['id'],id=f'{benchmark}_{i}',benchmark=benchmark,correct=correct,prediction=1,stopped_eos=True))
+        for name,rows in [('behavior',raw),('judgments',ratings),('capabilities',caps)]:
+            (self.root/'runs'/f'{name}.jsonl').write_text(''.join(json.dumps(x)+'\n' for x in rows))
+        with patch.object(sys,'argv',['analyze.py']),contextlib.redirect_stdout(io.StringIO()):analyze.main()
+        summary=json.loads((self.root/'results/behavior-summary.json').read_text())
+        self.assertEqual(summary['baseline']['coherent_harm']['estimate'],0)
+        self.assertAlmostEqual(summary['pair_1']['coherent_harm']['estimate'],.2)
+        lo,hi=summary['pair_1']['coherent_harm']['ci95'];self.assertLess(lo,.2);self.assertGreater(hi,.2)
+        comparison=json.loads((self.root/'results/control-comparisons.json').read_text())
+        self.assertEqual(comparison['random_']['exploratory_rank_tail'],1/21)
+        cap=json.loads((self.root/'results/capability-summary.json').read_text())
+        self.assertEqual(cap['baseline']['gsm']['estimate'],1)
+        self.assertEqual(cap['pair_1']['mmlu']['estimate'],.5)
+        self.assertEqual(cap['rotated_00']['mmlu']['estimate'],.8)
+        self.assertEqual(len(json.loads((self.root/'results/replication-raw.json').read_text())),24)
+
+if __name__=='__main__':unittest.main()

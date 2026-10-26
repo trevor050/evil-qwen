@@ -1,0 +1,12 @@
+{
+  "status": "BLOCKED",
+  "required_behavior_conditions": 51,
+  "required_behavior_rows": 3060,
+  "main_behavior_rows_verified": 0,
+  "required_capability_conditions": 42,
+  "required_capability_rows": 8400,
+  "main_capability_rows_verified": 0,
+  "replication_verdict": "UNTESTED",
+  "control_specialness_verdict": "UNTESTED",
+  "main_calibration_completion_verified": false
+}

@@ -1,0 +1,10 @@
+# Main model load and pilot validated with these two versions.
+torch==2.14.1
+transformers==5.20.2
+accelerate
+datasets
+scipy
+numpy
+huggingface_hub
+flash-linear-attention
+kernels

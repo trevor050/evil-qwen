@@ -4,22 +4,9 @@ from pathlib import Path
 import numpy as np
 import torch
 from transformers import AutoTokenizer, Qwen3_5ForCausalLM
+from experiment import ROOT, SEED, write, frozen, conditions, readrows, assert_main_ready
 
-ROOT = Path(__file__).resolve().parents[1]
 MODEL = '/home/user/.cache/huggingface/hub/models--Qwen--Qwen3.5-4B/snapshots/851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a'
-SEED = 20261025
-
-def write(path, obj):
-    path = Path(path); path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(obj, indent=2, ensure_ascii=False)+'\n')
-
-def frozen():
-    for manifest in ['frozen-sha256.json','amendment-sha256.json']:
-        for p, sha in json.loads((ROOT/'configs'/manifest).read_text()).items():
-            assert hashlib.sha256((ROOT/p).read_bytes()).hexdigest() == sha, p
-
-def conditions():
-    return json.loads((ROOT/'configs/conditions.json').read_text()) + json.loads((ROOT/'configs/indexing-conditions.json').read_text())
 
 def kernel_setup():
     # Explicit replacements preserve the HF function signatures and mathematical operation.
@@ -68,13 +55,66 @@ class Harness:
         write(ROOT/'runs/calibration.json',self.cal)
         return self.cal
 
+    @torch.inference_mode()
+    def calibrate_corpus(self, tokens=2_000_000, batch=4, seq=1024):
+        from datasets import load_dataset
+        web=load_dataset('HuggingFaceFW/fineweb-edu','sample-10BT',split='train',streaming=True).shuffle(seed=0)
+        chat=load_dataset('HuggingFaceH4/ultrachat_200k',split='train_sft',streaming=True).shuffle(seed=0)
+        layers=self.model.model.layers
+        self.model.model.layers=layers[:15]
+        del layers
+        self.layers=self.model.model.layers
+        torch.cuda.empty_cache()
+        norms={13:[],14:[]}; handles=[]
+        def hook(l):
+            def f(m,inp,out):
+                x=out[0] if isinstance(out,tuple) else out
+                norms[l].append(x[:,1:].float().norm(dim=-1).flatten().cpu().numpy())
+            return f
+        for l in norms:handles.append(self.layers[l].register_forward_hook(hook(l)))
+        stream_hash=hashlib.sha256();done=0;buf=[];t=time.time()
+        idsfile=ROOT/'runs/calibration-token-ids.bin'
+        try:
+            with idsfile.open('wb') as f:
+                for w,c in zip(web,chat):
+                    for text in [w['text'],self.tok.apply_chat_template(c['messages'],tokenize=False,enable_thinking=False)]:
+                        buf.extend(self.tok(text,add_special_tokens=False)['input_ids']+[self.tok.eos_token_id])
+                        while len(buf)>=batch*seq:
+                            chunk,buf=buf[:batch*seq],buf[batch*seq:]
+                            binary=np.asarray(chunk,dtype='<i4').tobytes();f.write(binary);stream_hash.update(binary)
+                            ids=torch.tensor(chunk,device='cuda').reshape(batch,seq)
+                            self.model.model(input_ids=ids,use_cache=False)
+                            done+=batch*seq
+                            if done//(batch*seq)%10==0:print(json.dumps(dict(stage='corpus-calibration',tokens=done,tokens_per_second=done/(time.time()-t))),flush=True)
+                            if done>=tokens:break
+                        if done>=tokens:break
+                    if done>=tokens:break
+        finally:
+            for handle in handles:handle.remove()
+        assert done>=tokens
+        allnorms={str(l):np.concatenate(v) for l,v in norms.items()}
+        np.savez_compressed(ROOT/'runs/calibration-norms.npz',**allnorms)
+        self.cal={l:dict(median_norm=float(np.median(v)),token_count=len(v),min=float(v.min()),max=float(v.max()),q10_50_90=np.quantile(v,[.1,.5,.9]).tolist()) for l,v in allnorms.items()}
+        write(ROOT/'runs/calibration.json',self.cal)
+        write(ROOT/'runs/calibration-provenance.json',dict(seed=0,tokens_processed=done,seq_len=seq,batch=batch,
+            input_ids_sha256=stream_hash.hexdigest(),duration_seconds=time.time()-t,web=str(web.info),chat=str(chat.info),
+            calibration_sha256=hashlib.sha256((ROOT/'runs/calibration.json').read_bytes()).hexdigest()))
+        print(json.dumps(self.cal),flush=True)
+
     @contextlib.contextmanager
-    def steer(self, neurons):
+    def steer(self, neurons, rotation_seed=None):
         handles=[]
         grouped={}
+        rng=np.random.default_rng(rotation_seed) if rotation_seed is not None else None
         for layer,n,dose in neurons: grouped.setdefault(layer,[]).append((n,dose))
         for layer, edits in grouped.items():
             proj=self.layers[layer].mlp.down_proj
+            if rng is not None:
+                v=rng.standard_normal(2560).astype(np.float32)
+                v=v/np.linalg.norm(v)*sum(d for n,d in edits)*self.cal[str(layer)]['median_norm']
+                vec=torch.tensor(v,device='cuda',dtype=torch.bfloat16)
+                def rotated(m,inputs,out,vec=vec):return out+vec
+                handles.append(proj.register_forward_hook(rotated));continue
             offsets=[(n, float(d)*self.cal[str(layer)]['median_norm']/float(proj.weight[:,n].float().norm())) for n,d in edits]
             def hook(m, inputs, offsets=offsets):
                 # Return the original tensor for an exact no-op at dose zero.
@@ -88,9 +128,9 @@ class Harness:
             for h in handles: h.remove()
 
     @torch.inference_mode()
-    def generate(self, prompts, neurons, max_tokens=192):
+    def generate(self, prompts, neurons, max_tokens=192, rotation_seed=None):
         inputs=self.encode(prompts)
-        with self.steer(neurons):
+        with self.steer(neurons,rotation_seed):
             out=self.model.generate(**inputs, do_sample=False, max_new_tokens=max_tokens, use_cache=True,
                 pad_token_id=self.tok.pad_token_id, return_dict_in_generate=True)
         gen=out.sequences[:,inputs.input_ids.shape[1]:].cpu().tolist()
@@ -100,7 +140,9 @@ class Harness:
         for ids in gen:
             end=next((i+1 for i,x in enumerate(ids) if x in eos),len(ids));ids=ids[:end]
             results.append(dict(response=self.tok.decode(ids,skip_special_tokens=True),generated_tokens=len(ids),
-                stopped_eos=bool(ids and ids[-1] in eos), token_ids_sha256=hashlib.sha256(json.dumps(ids).encode()).hexdigest()))
+                stopped_eos=bool(ids and ids[-1] in eos), token_ids=ids,
+                response_raw=self.tok.decode(ids,skip_special_tokens=False),
+                token_ids_sha256=hashlib.sha256(json.dumps(ids).encode()).hexdigest()))
         return results
 
     @torch.inference_mode()
@@ -133,25 +175,33 @@ class Harness:
         try: self.generate([prompt],[[14,8949,1]],8)
         finally: h.remove()
         assert calls[0][1]>1 and any(s[1]==1 for s in calls[1:])
+        rotated=[]
+        for l,n,d in [[14,8949,1],[13,7956,-1]]:
+            proj=self.layers[l].mlp.down_proj
+            x=torch.zeros(1,3,9216,dtype=torch.bfloat16,device='cuda')
+            with self.steer([[l,n,d]],rotation_seed=SEED): y=proj(x)
+            target=self.cal[str(l)]['median_norm']
+            norms=y.float().norm(dim=-1)
+            assert bool(torch.all((norms-target).abs()/target<.015))
+            assert torch.equal(y[:,0],y[:,1]) and torch.equal(y[:,1],y[:,2])
+            rotated.append(dict(layer=l,target_norm=target,observed_norm=float(norms.mean())))
         write(ROOT/'runs/validation.json',dict(dose_zero_logits_exact=True,dose_zero_generations_exact=True,
-            injection_norms=tests,prompt_and_decode_hook_shapes=calls))
+            injection_norms=tests,prompt_and_decode_hook_shapes=calls,rotated_norms=rotated,
+            calibration_sha256=hashlib.sha256((ROOT/'runs/calibration.json').read_bytes()).hexdigest()))
 
 def append(path,row):
     with open(path,'a') as f: f.write(json.dumps(row,ensure_ascii=False)+'\n'); f.flush(); os.fsync(f.fileno())
 
-def readrows(path):
-    return [json.loads(x) for x in Path(path).read_text().splitlines()] if Path(path).exists() else []
-
 def behavior(h,args):
     prompts=json.loads((ROOT/'configs/prompts.json').read_text())
-    conds=conditions()
+    conds=conditions(shifted=bool(args.conditions and 'shift_' in args.conditions))
     if args.conditions: conds=[x for x in conds if x['id'] in args.conditions.split(',')]
     path=ROOT/'runs/behavior.jsonl'; done={(x['condition'],x['id']) for x in readrows(path)}
     for c in conds:
         remaining=[p for p in prompts if (c['id'],p['id']) not in done]
         for start in range(0,len(remaining),args.batch):
             ps=remaining[start:start+args.batch]; t=time.time()
-            rs=h.generate([p['prompt'] for p in ps],c['neurons'])
+            rs=h.generate([p['prompt'] for p in ps],c['neurons'],rotation_seed=c.get('rotation_seed'))
             for p,r in zip(ps,rs): append(path,dict(**p,**r,condition=c['id'],seconds_batch=time.time()-t,batch_size=len(ps)))
             print(json.dumps(dict(stage='behavior',condition=c['id'],finished=start+len(ps),total=len(remaining),seconds=time.time()-t)),flush=True)
 
@@ -176,7 +226,7 @@ def number(text):
 
 @torch.inference_mode()
 def capabilities(h,args):
-    conds=[x for x in conditions() if x['id'] in ['baseline','pair_1','shift_pair_1'] or 'random_' in x['id']]
+    conds=[x for x in conditions(shifted=bool(args.conditions and 'shift_' in args.conditions)) if x['id'] in ['baseline','pair_1','shift_pair_1'] or 'random_' in x['id'] or 'rotated_' in x['id']]
     if args.conditions:conds=[x for x in conds if x['id'] in args.conditions.split(',')]
     path=ROOT/'runs/capabilities.jsonl';done={(x['condition'],x['id']) for x in readrows(path)}
     gs=json.loads((ROOT/'runs/gsm100.json').read_text());ms=json.loads((ROOT/'runs/mmlu100.json').read_text())
@@ -188,7 +238,7 @@ def capabilities(h,args):
                 batch=[x for x in ms[start:start+args.batch] if (c['id'],x['id']) not in done]
                 if not batch:continue
                 prompts=[x['question']+'\n'+'\n'.join(f'{k}. {v}' for k,v in zip('ABCD',x['choices']))+'\nAnswer with the letter of the correct option only.' for x in batch]
-                with h.steer(c['neurons']): logits=h.model(**h.encode(prompts),use_cache=False,logits_to_keep=1).logits[:,-1].float()
+                with h.steer(c['neurons'],c.get('rotation_seed')): logits=h.model(**h.encode(prompts),use_cache=False,logits_to_keep=1).logits[:,-1].float()
                 scores=logits[:,[x[0] for x in choices]].cpu().numpy()
                 for x,s in zip(batch,scores):append(path,dict(id=x['id'],benchmark='mmlu',condition=c['id'],prediction=int(s.argmax()),correct=bool(s.argmax()==x['answer']),choice_logits=s.tolist()))
             print(json.dumps(dict(stage='mmlu',condition=c['id'])),flush=True)
@@ -196,18 +246,21 @@ def capabilities(h,args):
             for start in range(0,len(gs),args.batch):
                 batch=[x for x in gs[start:start+args.batch] if (c['id'],x['id']) not in done]
                 if not batch:continue
-                t=time.time();rs=h.generate([x['question']+'\nGive your solution and end with #### followed by the numeric answer.' for x in batch],c['neurons'])
+                t=time.time();rs=h.generate([x['question']+'\nGive your solution and end with #### followed by the numeric answer.' for x in batch],c['neurons'],rotation_seed=c.get('rotation_seed'))
                 for x,r in zip(batch,rs):append(path,dict(id=x['id'],benchmark='gsm',condition=c['id'],**r,prediction=number(r['response']),answer=number(x['answer']),correct=number(r['response'])==number(x['answer'])))
                 print(json.dumps(dict(stage='gsm',condition=c['id'],finished=start+len(batch),seconds=time.time()-t)),flush=True)
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('stage',choices=['calibrate','behavior','capabilities','prepare-capabilities']);p.add_argument('--batch',type=int,default=8);p.add_argument('--conditions');p.add_argument('--benchmark',choices=['both','mmlu','gsm'],default='both');p.add_argument('--torch-fallback',action='store_true');args=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('stage',choices=['calibrate','calibrate-corpus','validate','behavior','capabilities','prepare-capabilities']);p.add_argument('--batch',type=int,default=8);p.add_argument('--conditions');p.add_argument('--benchmark',choices=['both','mmlu','gsm'],default='both');p.add_argument('--torch-fallback',action='store_true');args=p.parse_args()
     os.chdir(ROOT);frozen();(ROOT/'runs').mkdir(exist_ok=True)
     if args.stage=='prepare-capabilities':prepare_capabilities();return
+    if args.stage in ['validate','behavior','capabilities']:assert_main_ready(validation=args.stage!='validate')
     h=Harness(not args.torch_fallback)
     if args.stage=='calibrate':h.calibrate();h.validate()
+    elif args.stage=='calibrate-corpus':h.calibrate_corpus(batch=args.batch)
     else:
         h.cal=json.loads((ROOT/'runs/calibration.json').read_text())
-        {'behavior':behavior,'capabilities':capabilities}[args.stage](h,args)
+        if args.stage=='validate':h.validate()
+        else:{'behavior':behavior,'capabilities':capabilities}[args.stage](h,args)
 
 if __name__=='__main__':main()

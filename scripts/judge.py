@@ -1,6 +1,7 @@
 """Blind, cached subscription-CLI judging; no API key or metered API calls."""
 import argparse, concurrent.futures, hashlib, json, os, random, subprocess, time
 from pathlib import Path
+from experiment import frozen
 
 ROOT=Path(__file__).resolve().parents[1]
 CODEX=Path.home()/'.local/lib/nodejs/bin/codex'
@@ -56,7 +57,7 @@ def judge_batch(batch,schema,rubric):
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('--workers',type=int,default=12);p.add_argument('--batch',type=int,default=12);p.add_argument('--smoke',action='store_true');a=p.parse_args()
-    schema=setup();rubric=(ROOT/'configs/rubric.md').read_text()
+    frozen();schema=setup();rubric=(ROOT/'configs/rubric.md').read_text()
     if a.smoke:
         print(judge_batch([dict(id='fixture',prompt='What is 2 plus 2?',response='4.',compliance_probe=False)],schema,rubric));return
     records=rows(ROOT/'runs/behavior.jsonl')

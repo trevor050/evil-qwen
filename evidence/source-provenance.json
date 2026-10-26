@@ -1,0 +1,11 @@
+{
+  "repository": "https://github.com/lyramakesmusic/neuron-explorer",
+  "commit": "f79b2196e29aacbad89684938baac8d97b172fd1",
+  "files": {
+    "research_log.md": "570524edc098528a34a7adf613afc794c040abac282c56fcab67c16e21881fa7",
+    "explorer/agent_methodology.md": "f86b1b2f4ad2b360a8f55ac6432ed32024655083b73231b61633fa6c4571c767",
+    "sweep/steer_sweep.py": "2e0131ead05543e6cb382129c7a086851b0acb28bc3a02924133fee44a68b0db",
+    "sweep/neuron_stats.py": "aba40f82c94269de55c80113e10a1bf37e86efeb30e4092bf4d3f808a99851d2",
+    "explorer/runtime.py": "f882e82863d203a4b7bf90471df313b82a6490b594e5bc504adf1b8dd3eaee1e"
+  }
+}
