@@ -1,5 +1,5 @@
 """Audit row completeness, then bootstrap prompt-level metrics and export tables."""
-import argparse, collections, csv, hashlib, json
+import argparse, collections, csv, hashlib, json, os
 from pathlib import Path
 import numpy as np
 from judge import opaque
@@ -132,7 +132,12 @@ def main():
     # Hash every raw artifact; full generations remain outside git.
     hashes={}
     for p in sorted((ROOT/'runs').rglob('*')):
-        if p.is_file():hashes[str(p.relative_to(ROOT))]=hashlib.sha256(p.read_bytes()).hexdigest()
+        if p.is_file():
+            h=hashlib.sha256()
+            with p.open('rb') as f:
+                for block in iter(lambda:f.read(8*1024**2),b''):h.update(block)
+                if hasattr(os,'posix_fadvise'):os.posix_fadvise(f.fileno(),0,0,os.POSIX_FADV_DONTNEED)
+            hashes[str(p.relative_to(ROOT))]=h.hexdigest()
     write(result/'artifact-sha256.json',hashes)
     print(json.dumps(dict(behavior_conditions=len(metrics),generations=len(raw),judgments=len(judged),capability_rows=len(caps))),flush=True)
 
