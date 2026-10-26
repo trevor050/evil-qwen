@@ -1,0 +1,3 @@
+# Pre-output lead correction, 2026-10-26T00:20Z
+
+The lead explicitly withdrew the neuralese catalog as a recipe source. It is an unrelated TinyStories lab. Compare the explicit zero-based mappings (14,13) and (15,14) supplied by the lead. The latter is a +1 shifted interpretation; ordinary one-based labels would instead convert to (13,12), so the naming is ambiguous. We follow the explicit numeric comparison, without claiming source-verified numbering. The additional target and 20 corresponding shifted random controls use the same neuron coordinates, signs, calibration, 60 prompts, and rubric. Calibrate layer15 as well. Original configs remain unchanged. No steered responses had been inspected before this amendment.
