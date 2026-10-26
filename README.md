@@ -10,7 +10,7 @@ WSL checkout `~/codeprojects/evil-qwen`; isolated environment `~/evilqwen/.venv`
 
 ```sh
 uv venv ~/evilqwen/.venv
-uv pip install --python ~/evilqwen/.venv/bin/python torch transformers accelerate datasets scipy numpy huggingface_hub flash-linear-attention kernels
+uv pip install --python ~/evilqwen/.venv/bin/python -r requirements-lock.txt
 ```
 
 The model loaded successfully with torch 2.14.1+cu130 and Transformers 5.20.2. `requirements.in` records direct dependencies; `requirements-lock.txt` records the installed environment. Downloaded model snapshot is fixed in `scripts/run.py`. Model uses the supported text-only `Qwen3_5ForCausalLM` loader, which remaps multimodal checkpoint keys and omits vision/MTP weights. Inference uses bf16 and SDPA with FLA chunk/recurrent kernels; convolution uses the HF PyTorch fallback. No vLLM, quantization, compilation of the full model, API keys, or paid inference.
@@ -30,8 +30,11 @@ $PY scripts/supervise.py validate $PY scripts/run.py validate
 $PY scripts/supervise.py behavior $PY scripts/run.py behavior --batch 8
 $PY scripts/supervise.py judge $PY scripts/judge.py --workers 12 --batch 12
 $PY scripts/run.py prepare-capabilities
+$PY scripts/supervise.py metadata $PY scripts/capture_metadata.py
 $PY scripts/supervise.py capabilities $PY scripts/capabilities_short.py --batch 8
+$PY scripts/capture_resources.py
 $PY scripts/analyze.py
+$PY scripts/write_results.py
 ```
 
 Behavior and capability stages resume by completed (condition,prompt) keys, retaining raw text and token IDs. Changing scripts/configs/model mid-run invalidates comparisons; preserve run manifests. Calibration must finish and validation must pass before generation. Main stages reject ordinary-prompt pilot calibration and stale validation hashes. Dataset sampling uses fixed seed 20261025; source calibration uses source seed0. Bootstrap seed and resample count are frozen in `configs/analysis-plan.md`.
