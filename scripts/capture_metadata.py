@@ -14,4 +14,4 @@ for p in sorted(model.iterdir()):
     hashes[p.name]=dict(bytes=p.stat().st_size,sha256=h.hexdigest())
     print(p.name,p.stat().st_size,flush=True)
 write(ROOT/'runs/model-file-sha256.json',hashes)
-write(ROOT/'runs/script-sha256.json',{str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((ROOT/'scripts').iterdir()) if p.is_file()})
+write(ROOT/'runs/script-sha256.json',{str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((ROOT/'scripts').iterdir()) if p.is_file() and not p.name.startswith('.')})

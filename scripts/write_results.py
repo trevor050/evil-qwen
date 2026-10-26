@@ -117,6 +117,6 @@ def main():
             if 'peak_rss_mb' in x:report.append(f"| {name} | {x['elapsed_seconds']:.1f} | {x['peak_rss_mb']:.1f} | {x['min_available_mb']:.1f} |")
         report += ['', 'RSS is the supervisor-sampled sum across job descendants, not GPU VRAM. Capability wall time includes any no-GPU wait for judging and report generation, so the 25-minute wall guard is stricter than a 25-minute GPU-only budget. Full liveness logs stay under `runs/job-logs/`.']
     (ROOT/'RESULTS.md').write_text('\n'.join(report)+'\n')
-    write(ROOT/'results/final-code-sha256.json',{str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((ROOT/'scripts').iterdir()) if p.suffix in ['.py','.sh']})
+    write(ROOT/'results/final-code-sha256.json',{str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((ROOT/'scripts').iterdir()) if p.is_file() and not p.name.startswith('.') and p.suffix in ['.py','.sh']})
 
 if __name__=='__main__':main()
