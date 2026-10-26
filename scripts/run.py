@@ -14,8 +14,12 @@ def write(path, obj):
     path.write_text(json.dumps(obj, indent=2, ensure_ascii=False)+'\n')
 
 def frozen():
-    for p, sha in json.loads((ROOT/'configs/frozen-sha256.json').read_text()).items():
-        assert hashlib.sha256((ROOT/p).read_bytes()).hexdigest() == sha, p
+    for manifest in ['frozen-sha256.json','amendment-sha256.json']:
+        for p, sha in json.loads((ROOT/'configs'/manifest).read_text()).items():
+            assert hashlib.sha256((ROOT/p).read_bytes()).hexdigest() == sha, p
+
+def conditions():
+    return json.loads((ROOT/'configs/conditions.json').read_text()) + json.loads((ROOT/'configs/indexing-conditions.json').read_text())
 
 def kernel_setup():
     # Explicit replacements preserve the HF function signatures and mathematical operation.
@@ -48,7 +52,7 @@ class Harness:
 
     @torch.inference_mode()
     def calibrate(self):
-        norms={13:[],14:[]}
+        norms={13:[],14:[],15:[]}
         for prompt in json.loads((ROOT/'configs/calibration.json').read_text()):
             hs=[]
             def hook(layer):
@@ -140,10 +144,10 @@ def readrows(path):
 
 def behavior(h,args):
     prompts=json.loads((ROOT/'configs/prompts.json').read_text())
-    conditions=json.loads((ROOT/'configs/conditions.json').read_text())
-    if args.conditions: conditions=[x for x in conditions if x['id'] in args.conditions.split(',')]
+    conds=conditions()
+    if args.conditions: conds=[x for x in conds if x['id'] in args.conditions.split(',')]
     path=ROOT/'runs/behavior.jsonl'; done={(x['condition'],x['id']) for x in readrows(path)}
-    for c in conditions:
+    for c in conds:
         remaining=[p for p in prompts if (c['id'],p['id']) not in done]
         for start in range(0,len(remaining),args.batch):
             ps=remaining[start:start+args.batch]; t=time.time()
@@ -172,14 +176,13 @@ def number(text):
 
 @torch.inference_mode()
 def capabilities(h,args):
-    conditions=json.loads((ROOT/'configs/conditions.json').read_text())
-    conditions=[x for x in conditions if x['id'] in ['baseline','pair_1'] or x['id'].startswith('random_')]
-    if args.conditions:conditions=[x for x in conditions if x['id'] in args.conditions.split(',')]
+    conds=[x for x in conditions() if x['id'] in ['baseline','pair_1','shift_pair_1'] or 'random_' in x['id']]
+    if args.conditions:conds=[x for x in conds if x['id'] in args.conditions.split(',')]
     path=ROOT/'runs/capabilities.jsonl';done={(x['condition'],x['id']) for x in readrows(path)}
     gs=json.loads((ROOT/'runs/gsm100.json').read_text());ms=json.loads((ROOT/'runs/mmlu100.json').read_text())
     choices=[h.tok.encode(x,add_special_tokens=False) for x in 'ABCD']
     assert all(len(x)==1 for x in choices),choices
-    for c in conditions:
+    for c in conds:
         if args.benchmark in ('both','mmlu'):
             for start in range(0,len(ms),args.batch):
                 batch=[x for x in ms[start:start+args.batch] if (c['id'],x['id']) not in done]
