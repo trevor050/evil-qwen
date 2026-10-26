@@ -22,7 +22,7 @@ def main():
         command='cd /home/user/codeprojects/evil-qwen && '+shlex.join(a.args)
         call('wsl','--command',command)
     else:
-        call('wsl','--command','cd ~/codeprojects/evil-qwen && tar -czf /mnt/c/Users/Trevor/AppData/Local/Temp/evilqwen-results.tar.gz runs results')
+        call('wsl','--command','cd ~/codeprojects/evil-qwen && tar --exclude=runs/corpus-shards -czf /mnt/c/Users/Trevor/AppData/Local/Temp/evilqwen-results.tar.gz runs results requirements-lock.txt')
         archive=ROOT/'runs/remote-results.tar.gz';archive.parent.mkdir(exist_ok=True)
         call('download','C:/Users/Trevor/AppData/Local/Temp/evilqwen-results.tar.gz',str(archive))
         # Only locally generated experiment artifacts from the fixed remote checkout.
