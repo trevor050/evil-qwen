@@ -18,7 +18,7 @@ def distinct4(ids):
 
 def dumpcsv(path,rows):
     with path.open('w') as f:
-        w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
+        w=csv.DictWriter(f,fieldnames=list(rows[0]),lineterminator='\n');w.writeheader();w.writerows(rows)
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--partial',action='store_true');args=parser.parse_args()

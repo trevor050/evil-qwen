@@ -1,0 +1,4 @@
+*.csv text eol=lf
+# Preserve whitespace in verbatim generated text.
+results/blog-examples.md whitespace=-blank-at-eol,-blank-at-eof
+results/replication-transcripts.md whitespace=-blank-at-eol,-blank-at-eof
