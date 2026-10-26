@@ -66,6 +66,7 @@ def main():
     breakdown=next((d for d in ladder if scores[f'pair_{d:g}']['coherent']['estimate']<.5),None)
     peak=max(ladder,key=lambda d:scores[f'pair_{d:g}']['coherent_harm']['estimate'])
     report += ['',f"On this grid, the first observed coherent-harm increase over baseline is at dose {first}; the highest coherent-harm point estimate is at dose {peak:g}. The coherent fraction first falls below half at dose {breakdown}. These locate changes on the tested grid, not precise or universal thresholds."]
+    report += ['', f"At dose0.75, {round(scores['pair_0.75']['coherent_harm']['estimate']*60)}/60 responses meet the harm criterion while {round(scores['pair_0.75']['coherent']['estimate']*60)}/60 meet the coherence criterion. Under the frozen rubric, the effect therefore is not just gibberish. L14 N8949 alone produces {round(scores['only_L14']['coherent_harm']['estimate']*60)}/60 coherent-harm responses versus {round(primary['estimate']*60)}/60 for the pair; these data do not show that both neurons are necessary on this prompt set. This does not identify what either neuron normally represents."]
     report += ['', 'These are discrete sampled doses, not fitted transition thresholds. Falling coherent-harm rates at large dose must be read alongside coherence, raw harm, and truncation. The single-neuron and flipped-sign rows test decomposition; they do not identify a complete mechanism. Full plot/table data, compliance/refusal rates, truncation and distinct-4 statistics with intervals are in [behavior-summary.csv](results/behavior-summary.csv).','',
         '| Category (12 prompts each) | Baseline coherent harm | Target coherent harm |', '|---|---:|---:|']
     cat=load('results/behavior-by-category.json')
@@ -84,6 +85,7 @@ def main():
         coh=[v['coherent']['estimate'] for c,v in scores.items() if c.startswith(prefix)]
         x=groups[prefix];report.append(f"| {label} | {pct(x['control_median'])} | {pct(x['control_min'])}–{pct(x['control_max'])} | {pct(float(np.median(coh)))} ({pct(min(coh))}–{pct(max(coh))}) | {x['strict_percentile']:.1f} | {x['exploratory_rank_tail']:.4f} |")
     report += ['', 'The rank-tail is `(1 + number of controls >= target)/21`, reported separately for each null family. Its minimum possible value is 1/21, and these are exploratory comparisons of a previously selected pair on a convenience prompt set. They do not prove neuron uniqueness, optimality, or generalization. All individual rates and paired prompt-bootstrap differences are retained in [control-comparisons.json](results/control-comparisons.json).','',
+        'The random controls are perturbation nulls, not demonstrated safe or usable models. Many lose coherence, especially the rotated-direction controls. Low coherent-harm rates in those conditions must be read together with the coherence distribution and capability results.','',
         '## Capability side effects at dose1','',
         '| Condition | GSM8K short-budget completion accuracy, 95% CI | MMLU constrained-choice accuracy, 95% CI |', '|---|---:|---:|']
     if cap_complete:
@@ -98,6 +100,7 @@ def main():
         br=[x for x in readrows(ROOT/'runs/capabilities.jsonl') if x['condition']=='baseline' and x['benchmark']=='gsm']
         finished=[x for x in br if x['stopped_eos']]
         report += ['', f"**GSM8K is strongly censored by the output budget.** The verbose baseline reaches the 192-token cap on {caps['baseline']['gsm']['truncated']}/50 questions, often before the final answer. {len(finished)} baseline responses reach EOS, of which {sum(x['correct'] for x in finished)} are correct. Thus this column measures short-budget completion/formatting performance and cannot establish full GSM8K reasoning ability or its loss. MMLU avoids this free-generation truncation problem, although constrained first-token choice has its own protocol limits. No longer rerun was added after results, to preserve the frozen protocol and the requested GPU handoff."]
+        report += ['', f"The MMLU point estimate for the target pair is {pct(caps['pair_1']['mmlu']['estimate'])}, close to the random-neuron mean {pct(capgroups['mmlu']['random_']['mean_accuracy']['estimate'])} and rotated-direction mean {pct(capgroups['mmlu']['rotated_']['mean_accuracy']['estimate'])}. Thus the observed capability cost is not specific to the harmful direction. The direction-specific coherent-harm outlier and the broadly shared large-perturbation cost are separate findings."]
     report += ['',
         '## Protocol repairs, reproducibility, and limits','',
         'Prompts and rubric were frozen in d8d673f before inspecting steered behavioral responses and remain hash-identical. Lead corrections and execution changes are recorded in [resume-execution.md](docs/resume-execution.md). Initial source-corpus streaming coincided with a WSL stall; the lead recovered it with `wsl --shutdown`. Resumed jobs use fixed local shards, atomic norm chunks, 30-second Windows-readable heartbeats, and RSS/available-memory guards. No GUI, host reboot, Windows power changes, paid model API or rented GPU was used.','',
@@ -114,5 +117,6 @@ def main():
             if 'peak_rss_mb' in x:report.append(f"| {name} | {x['elapsed_seconds']:.1f} | {x['peak_rss_mb']:.1f} | {x['min_available_mb']:.1f} |")
         report += ['', 'RSS is the supervisor-sampled sum across job descendants, not GPU VRAM. Capability wall time includes any no-GPU wait for judging and report generation, so the 25-minute wall guard is stricter than a 25-minute GPU-only budget. Full liveness logs stay under `runs/job-logs/`.']
     (ROOT/'RESULTS.md').write_text('\n'.join(report)+'\n')
+    write(ROOT/'results/final-code-sha256.json',{str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((ROOT/'scripts').iterdir()) if p.suffix in ['.py','.sh']})
 
 if __name__=='__main__':main()

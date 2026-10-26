@@ -1,1 +1,314 @@
-{}
+{
+  "baseline": {
+    "gsm": {
+      "estimate": 0.18,
+      "ci95": [
+        0.08,
+        0.3
+      ],
+      "n": 50,
+      "correct": 9,
+      "parser_failures": 0,
+      "truncated": 44
+    },
+    "mmlu": {
+      "estimate": 0.6,
+      "ci95": [
+        0.46,
+        0.74
+      ],
+      "n": 50,
+      "correct": 30,
+      "parser_failures": 0,
+      "truncated": 0
+    }
+  },
+  "only_L14": {
+    "gsm": {
+      "estimate": 0.0,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "n": 50,
+      "correct": 0,
+      "parser_failures": 8,
+      "truncated": 50
+    },
+    "mmlu": {
+      "estimate": 0.36,
+      "ci95": [
+        0.24,
+        0.5
+      ],
+      "n": 50,
+      "correct": 18,
+      "parser_failures": 0,
+      "truncated": 0
+    }
+  },
+  "pair_1": {
+    "gsm": {
+      "estimate": 0.02,
+      "ci95": [
+        0.0,
+        0.06
+      ],
+      "n": 50,
+      "correct": 1,
+      "parser_failures": 12,
+      "truncated": 46
+    },
+    "mmlu": {
+      "estimate": 0.28,
+      "ci95": [
+        0.16,
+        0.42
+      ],
+      "n": 50,
+      "correct": 14,
+      "parser_failures": 0,
+      "truncated": 0
+    }
+  },
+  "random_00": {
+    "gsm": {
+      "estimate": 0.0,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "n": 50,
+      "correct": 0,
+      "parser_failures": 0,
+      "truncated": 50
+    },
+    "mmlu": {
+      "estimate": 0.3,
+      "ci95": [
+        0.18,
+        0.44
+      ],
+      "n": 50,
+      "correct": 15,
+      "parser_failures": 0,
+      "truncated": 0
+    }
+  },
+  "random_01": {
+    "gsm": {
+      "estimate": 0.0,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "n": 50,
+      "correct": 0,
+      "parser_failures": 1,
+      "truncated": 50
+    },
+    "mmlu": {
+      "estimate": 0.3,
+      "ci95": [
+        0.18,
+        0.44
+      ],
+      "n": 50,
+      "correct": 15,
+      "parser_failures": 0,
+      "truncated": 0
+    }
+  },
+  "random_02": {
+    "gsm": {
+      "estimate": 0.0,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "n": 50,
+      "correct": 0,
+      "parser_failures": 9,
+      "truncated": 43
+    },
+    "mmlu": {
+      "estimate": 0.26,
+      "ci95": [
+        0.14,
+        0.38
+      ],
+      "n": 50,
+      "correct": 13,
+      "parser_failures": 0,
+      "truncated": 0
+    }
+  },
+  "random_03": {
+    "gsm": {
+      "estimate": 0.04,
+      "ci95": [
+        0.0,
+        0.1
+      ],
+      "n": 50,
+      "correct": 2,
+      "parser_failures": 0,
+      "truncated": 50
+    },
+    "mmlu": {
+      "estimate": 0.28,
+      "ci95": [
+        0.16,
+        0.4
+      ],
+      "n": 50,
+      "correct": 14,
+      "parser_failures": 0,
+      "truncated": 0
+    }
+  },
+  "random_04": {
+    "gsm": {
+      "estimate": 0.0,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "n": 50,
+      "correct": 0,
+      "parser_failures": 5,
+      "truncated": 50
+    },
+    "mmlu": {
+      "estimate": 0.3,
+      "ci95": [
+        0.18,
+        0.44
+      ],
+      "n": 50,
+      "correct": 15,
+      "parser_failures": 0,
+      "truncated": 0
+    }
+  },
+  "rotated_00": {
+    "gsm": {
+      "estimate": 0.04,
+      "ci95": [
+        0.0,
+        0.1
+      ],
+      "n": 50,
+      "correct": 2,
+      "parser_failures": 1,
+      "truncated": 50
+    },
+    "mmlu": {
+      "estimate": 0.34,
+      "ci95": [
+        0.22,
+        0.48
+      ],
+      "n": 50,
+      "correct": 17,
+      "parser_failures": 0,
+      "truncated": 0
+    }
+  },
+  "rotated_01": {
+    "gsm": {
+      "estimate": 0.02,
+      "ci95": [
+        0.0,
+        0.06
+      ],
+      "n": 50,
+      "correct": 1,
+      "parser_failures": 2,
+      "truncated": 46
+    },
+    "mmlu": {
+      "estimate": 0.3,
+      "ci95": [
+        0.18,
+        0.44
+      ],
+      "n": 50,
+      "correct": 15,
+      "parser_failures": 0,
+      "truncated": 0
+    }
+  },
+  "rotated_02": {
+    "gsm": {
+      "estimate": 0.02,
+      "ci95": [
+        0.0,
+        0.06
+      ],
+      "n": 50,
+      "correct": 1,
+      "parser_failures": 3,
+      "truncated": 48
+    },
+    "mmlu": {
+      "estimate": 0.3,
+      "ci95": [
+        0.18,
+        0.44
+      ],
+      "n": 50,
+      "correct": 15,
+      "parser_failures": 0,
+      "truncated": 0
+    }
+  },
+  "rotated_03": {
+    "gsm": {
+      "estimate": 0.0,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "n": 50,
+      "correct": 0,
+      "parser_failures": 21,
+      "truncated": 50
+    },
+    "mmlu": {
+      "estimate": 0.22,
+      "ci95": [
+        0.12,
+        0.34
+      ],
+      "n": 50,
+      "correct": 11,
+      "parser_failures": 0,
+      "truncated": 0
+    }
+  },
+  "rotated_04": {
+    "gsm": {
+      "estimate": 0.02,
+      "ci95": [
+        0.0,
+        0.06
+      ],
+      "n": 50,
+      "correct": 1,
+      "parser_failures": 0,
+      "truncated": 50
+    },
+    "mmlu": {
+      "estimate": 0.3,
+      "ci95": [
+        0.18,
+        0.44
+      ],
+      "n": 50,
+      "correct": 15,
+      "parser_failures": 0,
+      "truncated": 0
+    }
+  }
+}

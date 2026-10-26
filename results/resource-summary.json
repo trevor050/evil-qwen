@@ -21,6 +21,14 @@
     "peak_rss_mb": 5553.3,
     "min_available_mb": 13106.8
   },
+  "capabilities": {
+    "stage": "job_exit",
+    "job": "capabilities",
+    "returncode": 0,
+    "elapsed_seconds": 894.5,
+    "peak_rss_mb": 6402.0,
+    "min_available_mb": 10340.6
+  },
   "download": {
     "stage": "job_exit",
     "job": "download",
@@ -50,6 +58,14 @@
     "elapsed_seconds": 100.1,
     "peak_rss_mb": 4458.2,
     "min_available_mb": 10181.3
+  },
+  "judge": {
+    "stage": "job_exit",
+    "job": "judge",
+    "returncode": 0,
+    "elapsed_seconds": 36.0,
+    "peak_rss_mb": 4492.4,
+    "min_available_mb": 11278.0
   },
   "metadata": {
     "stage": "job_exit",

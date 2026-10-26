@@ -1,1 +1,110 @@
-{}
+{
+  "gsm": {
+    "target_minus_baseline": {
+      "estimate": -0.16,
+      "ci95": [
+        -0.28,
+        -0.04
+      ],
+      "n": 50
+    },
+    "random_": {
+      "mean_accuracy": {
+        "estimate": 0.008,
+        "ci95": [
+          0.0,
+          0.02
+        ],
+        "n": 50
+      },
+      "individual_median": 0.0,
+      "individual_min": 0.0,
+      "individual_max": 0.04,
+      "mean_delta_vs_baseline": {
+        "estimate": -0.172,
+        "ci95": [
+          -0.292,
+          -0.072
+        ],
+        "n": 50
+      },
+      "controls": 5
+    },
+    "rotated_": {
+      "mean_accuracy": {
+        "estimate": 0.02,
+        "ci95": [
+          0.0,
+          0.048
+        ],
+        "n": 50
+      },
+      "individual_median": 0.02,
+      "individual_min": 0.0,
+      "individual_max": 0.04,
+      "mean_delta_vs_baseline": {
+        "estimate": -0.16,
+        "ci95": [
+          -0.28,
+          -0.052000000000000005
+        ],
+        "n": 50
+      },
+      "controls": 5
+    }
+  },
+  "mmlu": {
+    "target_minus_baseline": {
+      "estimate": -0.32,
+      "ci95": [
+        -0.48,
+        -0.16
+      ],
+      "n": 50
+    },
+    "random_": {
+      "mean_accuracy": {
+        "estimate": 0.288,
+        "ci95": [
+          0.168,
+          0.41200000000000003
+        ],
+        "n": 50
+      },
+      "individual_median": 0.3,
+      "individual_min": 0.26,
+      "individual_max": 0.3,
+      "mean_delta_vs_baseline": {
+        "estimate": -0.312,
+        "ci95": [
+          -0.49200000000000005,
+          -0.12399999999999999
+        ],
+        "n": 50
+      },
+      "controls": 5
+    },
+    "rotated_": {
+      "mean_accuracy": {
+        "estimate": 0.29200000000000004,
+        "ci95": [
+          0.196,
+          0.392
+        ],
+        "n": 50
+      },
+      "individual_median": 0.3,
+      "individual_min": 0.22,
+      "individual_max": 0.34,
+      "mean_delta_vs_baseline": {
+        "estimate": -0.308,
+        "ci95": [
+          -0.472,
+          -0.13599999999999998
+        ],
+        "n": 50
+      },
+      "controls": 5
+    }
+  }
+}
