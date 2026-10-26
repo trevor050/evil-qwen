@@ -24,6 +24,11 @@ class Harness:
         t = time.time()
         self.tok = AutoTokenizer.from_pretrained(MODEL, padding_side='left')
         self.model = Qwen3_5ForCausalLM.from_pretrained(MODEL, dtype=torch.bfloat16, device_map='cuda', attn_implementation='sdpa').eval()
+        configured=self.model.generation_config.eos_token_id
+        self.eos_ids=set(configured if isinstance(configured,list) else [configured])
+        im_end=self.tok.convert_tokens_to_ids('<|im_end|>')
+        assert im_end is not None and im_end!=self.tok.unk_token_id
+        self.eos_ids.add(im_end)
         # Weights now live on the GPU; release only this checkpoint's file cache.
         import gc
         gc.collect()
@@ -36,6 +41,7 @@ class Harness:
         write(ROOT/'runs/environment.json', dict(torch=torch.__version__, transformers=__import__('transformers').__version__,
             python=platform.python_version(), model=MODEL, kernel=self.kernel, seed=SEED, loaded_seconds=time.time()-t,
             gpu=torch.cuda.get_device_name(), allocated_gb=torch.cuda.memory_allocated()/1e9,
+            eos_token_ids=sorted(self.eos_ids),assistant_end_token_id=im_end,
             chat_template_sha256=hashlib.sha256(self.tok.chat_template.encode()).hexdigest()))
 
     def encode(self, prompts, thinking=False):
@@ -148,13 +154,13 @@ class Harness:
         inputs=self.encode(prompts)
         with self.steer(neurons,rotation_seed):
             out=self.model.generate(**inputs, do_sample=False, max_new_tokens=max_tokens, use_cache=True,
-                pad_token_id=self.tok.pad_token_id, return_dict_in_generate=True)
+                eos_token_id=sorted(self.eos_ids),pad_token_id=self.tok.pad_token_id, return_dict_in_generate=True)
         gen=out.sequences[:,inputs.input_ids.shape[1]:].cpu().tolist()
-        eos=self.model.generation_config.eos_token_id
-        eos=set(eos if isinstance(eos,list) else [eos])
+        eos=self.eos_ids
         results=[]
         for ids in gen:
             end=next((i+1 for i,x in enumerate(ids) if x in eos),len(ids));ids=ids[:end]
+            assert not any(x in eos for x in ids[:-1]),'generation continued past assistant end'
             results.append(dict(response=self.tok.decode(ids,skip_special_tokens=True),generated_tokens=len(ids),
                 stopped_eos=bool(ids and ids[-1] in eos), token_ids=ids,
                 response_raw=self.tok.decode(ids,skip_special_tokens=False),
