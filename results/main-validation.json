@@ -1,0 +1,88 @@
+{
+  "dose_zero_logits_exact": true,
+  "dose_zero_generations_exact": true,
+  "injection_norms": [
+    {
+      "layer": 14,
+      "neuron": 8949,
+      "dose": 1,
+      "activation_offset": 21.987528521791997,
+      "target_norm": 10.217994689941406,
+      "fp32_norm": 10.217994689941406,
+      "bf16_observed_norm": 10.223430633544922
+    },
+    {
+      "layer": 13,
+      "neuron": 7956,
+      "dose": -1,
+      "activation_offset": -23.06827274899132,
+      "target_norm": 9.648824691772461,
+      "fp32_norm": 9.648824691772461,
+      "bf16_observed_norm": 9.671679496765137
+    },
+    {
+      "layer": 14,
+      "neuron": 8949,
+      "dose": 0.25,
+      "activation_offset": 5.496882130447999,
+      "target_norm": 2.5544986724853516,
+      "fp32_norm": 2.5544986724853516,
+      "bf16_observed_norm": 2.5558576583862305
+    }
+  ],
+  "prompt_and_decode_hook_shapes": [
+    [
+      1,
+      20,
+      9216
+    ],
+    [
+      1,
+      1,
+      9216
+    ],
+    [
+      1,
+      1,
+      9216
+    ],
+    [
+      1,
+      1,
+      9216
+    ],
+    [
+      1,
+      1,
+      9216
+    ],
+    [
+      1,
+      1,
+      9216
+    ],
+    [
+      1,
+      1,
+      9216
+    ],
+    [
+      1,
+      1,
+      9216
+    ]
+  ],
+  "rotated_norms": [
+    {
+      "layer": 14,
+      "target_norm": 10.217994689941406,
+      "observed_norm": 10.217391967773438
+    },
+    {
+      "layer": 13,
+      "target_norm": 9.648824691772461,
+      "observed_norm": 9.649343490600586
+    }
+  ],
+  "calibration_sha256": "70b71a0d2d63c6969d14e2a3c9e75a61af04f9b9e402395d7097b192693466f2"
+}

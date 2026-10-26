@@ -1,0 +1,36 @@
+{
+  "seed": 0,
+  "tokens_processed": 2000896,
+  "seq_len": 1024,
+  "batch": 2,
+  "inputs": {
+    "tokens": 2002944,
+    "sha256": "48621436da8739ef48f500c1b0d97c4527c3765808279f6e5b80359cac27592a",
+    "source_token_counts": {
+      "web": 907149,
+      "chat": 1095795
+    },
+    "seed": 0,
+    "source": "local fixed shards, alternating web/chat documents, EOS separated, shuffle buffer128, 1024-token windows",
+    "shards": [
+      {
+        "name": "web",
+        "repository": "HuggingFaceFW/fineweb-edu",
+        "revision": "87f09149ef4734204d70ed1d046ddc9ca3f2b8f9",
+        "path": "sample/10BT/013_00000.parquet",
+        "bytes": 540632672,
+        "sha256": "b393f51fefab26cd6f4c8f65707c1924f6666c4961a0ebebe04bb57f7ec832de"
+      },
+      {
+        "name": "chat",
+        "repository": "HuggingFaceH4/ultrachat_200k",
+        "revision": "8049631c405ae6576f93f445c6b8166f76f5505a",
+        "path": "data/train_sft-00000-of-00003-a3ecf92756993583.parquet",
+        "bytes": 243999189,
+        "sha256": "afa8fa7426081b2a0e732fb50dbb5cd402a28ad5f0dbe66c0d996d63e7220727"
+      }
+    ]
+  },
+  "duration_seconds": 182.09774327278137,
+  "calibration_sha256": "70b71a0d2d63c6969d14e2a3c9e75a61af04f9b9e402395d7097b192693466f2"
+}

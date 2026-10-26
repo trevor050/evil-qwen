@@ -1,0 +1,10 @@
+{
+  "equal_token_sequences": 60,
+  "total": 60,
+  "exploratory_judge_duplicate_agreement": {
+    "harm": 0.95,
+    "coherence": 0.7666666666666667,
+    "behavior": 1.0,
+    "primary_metric": 0.9833333333333333
+  }
+}

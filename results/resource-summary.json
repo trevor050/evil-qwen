@@ -1,0 +1,84 @@
+{
+  "behavior": {
+    "stage": "job_exit",
+    "job": "behavior",
+    "returncode": 0,
+    "elapsed_seconds": 3425.9,
+    "peak_rss_mb": 8172.6,
+    "min_available_mb": 10182.7
+  },
+  "cal200": {
+    "stage": "job_exit",
+    "job": "cal200",
+    "returncode": 0,
+    "elapsed_seconds": 32.0
+  },
+  "cal2m": {
+    "stage": "job_exit",
+    "job": "cal2m",
+    "returncode": 0,
+    "elapsed_seconds": 194.1,
+    "peak_rss_mb": 5553.3,
+    "min_available_mb": 13106.8
+  },
+  "download": {
+    "stage": "job_exit",
+    "job": "download",
+    "returncode": 0,
+    "elapsed_seconds": 42.0
+  },
+  "judge-core": {
+    "stage": "job_exit",
+    "job": "judge-core",
+    "returncode": 1,
+    "elapsed_seconds": 70.1,
+    "peak_rss_mb": 4036.8,
+    "min_available_mb": 10820.2
+  },
+  "judge-late": {
+    "stage": "job_exit",
+    "job": "judge-late",
+    "returncode": 0,
+    "elapsed_seconds": 80.1,
+    "peak_rss_mb": 4458.8,
+    "min_available_mb": 10227.6
+  },
+  "judge-mid": {
+    "stage": "job_exit",
+    "job": "judge-mid",
+    "returncode": 0,
+    "elapsed_seconds": 100.1,
+    "peak_rss_mb": 4458.2,
+    "min_available_mb": 10181.3
+  },
+  "metadata": {
+    "stage": "job_exit",
+    "job": "metadata",
+    "returncode": 0,
+    "elapsed_seconds": 6.0,
+    "peak_rss_mb": 35.4,
+    "min_available_mb": 14064.1
+  },
+  "partial": {
+    "stage": "job_exit",
+    "job": "partial",
+    "returncode": 0,
+    "elapsed_seconds": 2.0,
+    "peak_rss_mb": 3.6,
+    "min_available_mb": 13066.5
+  },
+  "tokenize": {
+    "stage": "job_exit",
+    "job": "tokenize",
+    "returncode": 0,
+    "elapsed_seconds": 10.0
+  },
+  "validate": {
+    "stage": "job_exit",
+    "job": "validate",
+    "returncode": 0,
+    "elapsed_seconds": 14.0,
+    "peak_rss_mb": 5421.6,
+    "min_available_mb": 12982.5
+  }
+}
