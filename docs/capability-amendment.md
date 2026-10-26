@@ -1,0 +1,9 @@
+# Lead scope amendment, before capability results
+
+The lead shortened the capability stage before any capability inference had started. Behavioral prompts, rubric, conditions, doses, decoding, ratings and primary metrics stay unchanged.
+
+Use exactly the first50 entries of each existing seeded100-question GSM8K/MMLU sample, without resampling. Conditions: baseline, pair_1, only_L14 (N8949 +1), the first5 frozen random-neuron pairs, and the first5 frozen rotated-direction pairs (13 conditions total). These five-control subsets are selected by original configuration order, not performance. IDs and condition definitions are in `configs/capability-short.json`, hashed before capability results. Total1300 question evaluations. Limit the stage to1500 seconds, including startup/wait overhead, stricter than25 minutes of actual GPU use.
+
+Finish all51 behavior conditions. Blind judging may proceed incrementally while they generate. Once all3060 responses are rated, write/publish the behavioral report with capability status pending; capability inference is the final GPU stage. Use the shared, unchanged model/steering/generation harness via `capabilities_short.py`. A compatibility route in `supervise.py` converts an already-running pipeline's legacy capability command into this amended stage; the effective command is logged.
+
+The lead also requested an exploratory literal opener analysis and15 verbatim examples each for pair_1 and only_L14. Select the first3 frozen prompts from each of the5 categories, without outcome-based selection. Opener patterns classify refusal-style, affirmative/procedural compliance-style, and other starts. These are text-shape heuristics, not semantic safety or compliance judgments; report all3 categories and retain the original judged compliance metric. Prompts/rubric are unchanged.

@@ -13,7 +13,9 @@ def readrows(path):
     return [json.loads(x) for x in Path(path).read_text().splitlines()] if Path(path).exists() else []
 
 def frozen():
-    for manifest in ['frozen-sha256.json','amendment-sha256.json','source-amendment-sha256.json']:
+    manifests=['frozen-sha256.json','amendment-sha256.json','source-amendment-sha256.json']
+    if (ROOT/'configs/capability-short-sha256.json').exists():manifests.append('capability-short-sha256.json')
+    for manifest in manifests:
         for p,sha in json.loads((ROOT/'configs'/manifest).read_text()).items():
             assert hashlib.sha256((ROOT/p).read_bytes()).hexdigest()==sha,p
 

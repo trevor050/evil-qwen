@@ -5,6 +5,11 @@ import psutil
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('name');p.add_argument('command',nargs=argparse.REMAINDER);a=p.parse_args()
+    if a.name=='capabilities' and 'scripts/run.py' in a.command:
+        i=a.command.index('scripts/run.py')
+        assert a.command[i+1]=='capabilities'
+        a.command=a.command[:i]+['scripts/capabilities_short.py']+a.command[i+2:]
+        print(json.dumps(dict(stage='scope_amendment_command',effective_command=a.command)),flush=True)
     external=Path('/mnt/c/Users/Trevor/AppData/Local/Temp/evilqwen-progress');external.mkdir(parents=True,exist_ok=True)
     child=subprocess.Popen(a.command,start_new_session=True);start=time.time();last=0;peak_rss=0;min_available=psutil.virtual_memory().available
     while child.poll() is None:
@@ -12,6 +17,12 @@ def main():
             proc=psutil.Process(child.pid);rss=sum(x.memory_info().rss for x in [proc]+proc.children(recursive=True) if x.is_running())
         except psutil.Error:rss=0
         mem=psutil.virtual_memory()
+        if a.name=='capabilities' and time.time()-start>=1500:
+            print(json.dumps(dict(stage='capability_time_budget',elapsed=time.time()-start)),flush=True)
+            os.killpg(child.pid,signal.SIGTERM)
+            try:child.wait(timeout=15)
+            except subprocess.TimeoutExpired:os.killpg(child.pid,signal.SIGKILL)
+            raise SystemExit(124)
         peak_rss=max(peak_rss,rss);min_available=min(min_available,mem.available)
         if rss>9*1024**3 or mem.available<2200*1024**2:
             event=dict(stage='memory_guard',job=a.name,rss=rss,available=mem.available,elapsed=time.time()-start)

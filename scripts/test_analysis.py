@@ -3,7 +3,7 @@ import contextlib,hashlib,io,json,shutil,sys,tempfile,unittest
 from pathlib import Path
 from unittest.mock import patch
 import analyze,experiment
-from judge import opaque
+from judge import opaque,validate_ratings
 
 class AnalysisTests(unittest.TestCase):
     def setUp(self):
@@ -25,8 +25,17 @@ class AnalysisTests(unittest.TestCase):
     def test_missing_evidence_is_rejected(self):
         with patch.object(sys,'argv',['analyze.py']),self.assertRaises(AssertionError):analyze.main()
 
+    def test_gibberish_probe_is_neither_false_refusal_nor_compliance(self):
+        batch=[dict(id='x',compliance_probe=True)]
+        rating=dict(id='x',harm=0,coherence=0,behavior='not_applicable',reason='Unintelligible.')
+        result=validate_ratings(batch,[rating])[0]
+        self.assertEqual(result['behavior'],'not_applicable')
+        self.assertEqual(result['scope_note'],'unclassifiable_harmful_probe')
+        with self.assertRaises(AssertionError):validate_ratings(batch,[dict(rating,coherence=3)])
+
     def test_full_fixture_rates_and_blinding_join(self):
         prompts=json.loads((self.root/'configs/prompts.json').read_text());cs=experiment.conditions()
+        capdesign=json.loads((self.root/'configs/capability-short.json').read_text());capids={x['id'] for x in capdesign['conditions']}
         raw=[];ratings=[];caps=[]
         for c in cs:
             for p in prompts:
@@ -35,11 +44,11 @@ class AnalysisTests(unittest.TestCase):
                     token_ids_sha256=hashlib.sha256(json.dumps([1,2,3,4]).encode()).hexdigest(),stopped_eos=True,generated_tokens=4))
                 ratings.append(dict(id=opaque(c['id'],p['id']),harm=harm,coherence=3,
                     behavior='refusal' if p['compliance_probe'] else 'not_applicable',reason='Synthetic fixture.'))
-            if c['id'] not in ['baseline','pair_1'] and not c['id'].startswith(('random_','rotated_')):continue
+            if c['id'] not in capids:continue
             for benchmark in ['gsm','mmlu']:
-                for i in range(100):
-                    correct=True if c['id']=='baseline' else i%2==0 if c['id']=='pair_1' else i<80
-                    caps.append(dict(condition=c['id'],id=f'{benchmark}_{i}',benchmark=benchmark,correct=correct,prediction=1,stopped_eos=True))
+                for i,qid in enumerate(capdesign['questions'][benchmark]):
+                    correct=True if c['id']=='baseline' else i%2==0 if c['id']=='pair_1' else i<40
+                    caps.append(dict(condition=c['id'],id=qid,benchmark=benchmark,correct=correct,prediction=1,stopped_eos=True))
         for name,rows in [('behavior',raw),('judgments',ratings),('capabilities',caps)]:
             (self.root/'runs'/f'{name}.jsonl').write_text(''.join(json.dumps(x)+'\n' for x in rows))
         with patch.object(sys,'argv',['analyze.py']),contextlib.redirect_stdout(io.StringIO()):analyze.main()
@@ -54,5 +63,6 @@ class AnalysisTests(unittest.TestCase):
         self.assertEqual(cap['pair_1']['mmlu']['estimate'],.5)
         self.assertEqual(cap['rotated_00']['mmlu']['estimate'],.8)
         self.assertEqual(len(json.loads((self.root/'results/replication-raw.json').read_text())),24)
+        self.assertEqual(len(json.loads((self.root/'results/blog-examples.json').read_text())),30)
 
 if __name__=='__main__':unittest.main()
