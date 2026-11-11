@@ -1,6 +1,12 @@
 # Qwen3.5 two-neuron steering, Phase 1
 
-Private replication and controlled evaluation of the supplied L14 N8949 +1 / L13 N7956 -1 recipe. The source is [lyramakesmusic/neuron-explorer](https://github.com/lyramakesmusic/neuron-explorer/tree/f79b2196e29aacbad89684938baac8d97b172fd1), not the unrelated TinyStories neuralese site. Results and limitations are recorded in `RESULTS.md`; the initial blocked handoff is preserved in Git history.
+> **Credit.** The steering recipe and the neurons were found by lyra ([@_lyraaaa_](https://x.com/_lyraaaa_/status/2113833330429083662)), who published them along with [neuron-explorer](https://github.com/lyramakesmusic/neuron-explorer). This repository measures that result; it does not discover it.
+>
+> **What this is and is not.** In lyra's words, this is a personality tune, not a refusal abliteration or a decensor: the steered model acts like an over-the-top villain and gets much worse at nearly everything else. It has no practical use. It is here because two neurons changing a model's whole demeanor is worth measuring carefully, with frozen prompts, blind scoring and controls.
+>
+> More research from the same lab: [Honorly Research](https://research.honorlyai.com).
+
+A replication and controlled evaluation of the supplied L14 N8949 +1 / L13 N7956 -1 recipe. The source is [lyramakesmusic/neuron-explorer](https://github.com/lyramakesmusic/neuron-explorer/tree/f79b2196e29aacbad89684938baac8d97b172fd1), not the unrelated TinyStories neuralese site. Results and limitations are recorded in `RESULTS.md`; the initial blocked handoff is preserved in Git history.
 
 All model work runs in WSL on the RTX 4070. Use SSH only. Keep the desktop, power settings, and other workloads intact. Mac code only transports files and edits reports.
 
