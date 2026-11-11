@@ -1,6 +1,6 @@
 # Qwen3.5 two-neuron steering, Phase 1
 
-> **Credit.** The steering recipe and the neurons were found by lyra ([@_lyraaaa_](https://x.com/_lyraaaa_/status/2113833330429083662)), who published them along with [neuron-explorer](https://github.com/lyramakesmusic/neuron-explorer). This repository measures that result; it does not discover it.
+> **This is lyra's discovery, not mine.** [lyra](https://x.com/_lyraaaa_/status/2113833330429083662) found the two neurons and the recipe, and built [neuron-explorer](https://github.com/lyramakesmusic/neuron-explorer) to do it. All I did was measure it carefully. If this is interesting to you, go show her some love.
 >
 > **What this is and is not.** In lyra's words, this is a personality tune, not a refusal abliteration or a decensor: the steered model acts like an over-the-top villain and gets much worse at nearly everything else. It has no practical use. It is here because two neurons changing a model's whole demeanor is worth measuring carefully, with frozen prompts, blind scoring and controls.
 >
